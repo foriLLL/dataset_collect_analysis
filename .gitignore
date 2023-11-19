@@ -1,0 +1,9 @@
+__pycache__/
+.vscode/
+_venv/
+data/
+git_repo/
+output/
+out/
+.idea/
+.DS_Store
