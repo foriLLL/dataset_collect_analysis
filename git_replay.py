@@ -5,10 +5,12 @@ import json
 from pathlib import Path
 import subprocess
 from util import Conflict
+import os
 
 # 数据文件路径
-file_path = 'output/all_lang_emptyreserved.json'
-new_git = '/root/projects/git/git'                  # 编译后的 Git 地址
+script_path = Path(os.path.abspath(''))
+file_path = script_path / 'output' / 'self_collected_most_50.json'
+_git = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
 tmp_file = Path('git_repo/tmp.txt')                 # 用于 replay 冲突的文件
 
 
@@ -29,20 +31,20 @@ def writeNcommit(file: Path, content: Union[List[str], str], commit_message = "c
     file.write_text(content)
     
     # 添加所有修改的文件
-    run_command([new_git, "add", "-A"], cwd = file.parent)
+    run_command([_git, "add", "-A"], cwd = file.parent)
     # 提交更改
-    run_command([new_git, "commit", "-m", commit_message], cwd = file.parent)
+    run_command([_git, "commit", "-m", commit_message], cwd = file.parent)
 
 
 def new_branch_and_checkout(repo_dir: Path, branch_name: str):
-    run_command([new_git, "checkout", "-b", branch_name], cwd = repo_dir)
+    run_command([_git, "checkout", "-b", branch_name], cwd = repo_dir)
 
 
 def switch_branch(repo_dir: Path, branch_name: str):
-    run_command([new_git, "switch", branch_name], cwd = repo_dir)
+    run_command([_git, "switch", branch_name], cwd = repo_dir)
 
 def merge_branch(repo_dir: Path, branch_name: str):
-    run_command([new_git, "merge", branch_name], cwd = repo_dir)
+    run_command([_git, "merge", branch_name], cwd = repo_dir)
 
 
 def replay(file: Path, conflict: Conflict):
@@ -62,8 +64,8 @@ def replay(file: Path, conflict: Conflict):
 
 def reset_all(repo_dir, init_hash, delete_branch_name):
     switch_branch(repo_dir, 'main')
-    run_command([new_git, "reset", "--hard", init_hash], cwd = repo_dir)
-    run_command([new_git, "branch", "-D", delete_branch_name], cwd = repo_dir)
+    run_command([_git, "reset", "--hard", init_hash], cwd = repo_dir)
+    run_command([_git, "branch", "-D", delete_branch_name], cwd = repo_dir)
 
 correct, total = 0, 0
 wierd = 0
@@ -72,7 +74,7 @@ kind_counter = defaultdict(int)
 kind_correct = defaultdict(int)
 for idx, conflict in enumerate(tqdm(data[:])):
     if conflict['base'] == conflict['theirs'] or conflict['base'] == conflict['ours']:
-        wierd += 1          # 往往是多一个换行符导致的问题，是 mergebert 收集的数据集的问题
+        wierd += 1          # 空白符冲突 / CRLF 冲突
         continue
     kind_counter[conflict['resolution_kind']] += 1
     try:
@@ -94,7 +96,7 @@ for idx, conflict in enumerate(tqdm(data[:])):
         # 打印标准错误输出（即命令的错误信息）
         break
     if idx % 100 == 99:
-        with open('tmp_output.txt', 'w') as f:
+        with open(Path(script_path / 'log' / 'tmp.log'), 'w') as f:
             print(f"总数 = {total}", file=f)
             print(f"伪冲突 = {sum(kind_pseudo.values())}", file=f)
             print(f"正确数 = {correct}", file=f)
@@ -109,7 +111,8 @@ for idx, conflict in enumerate(tqdm(data[:])):
             print({kind: kind_pseudo[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}, file=f)
 
 
-save_name = './output/result_' + file_path[file_path.rfind('/')+1:file_path.rfind('.')] + '.txt'
+save_path = script_path / 'log'
+save_name = save_path / (file_path.stem + '.log')
 with open(save_name, 'w') as f:
     print(f"总数 = {total}", file=f)
     print(f"伪冲突 = {sum(kind_pseudo.values())}", file=f)
