@@ -8,10 +8,9 @@ from util import Conflict
 import os
 
 # 数据文件路径
-script_path = Path(os.path.abspath(''))
+script_path = Path(os.path.dirname(os.path.abspath(__file__)))
 file_path = script_path / 'output' / 'self_collected_most_50.json'
-# _git = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
-_git = 'git'                                        # vanilla Git
+_git = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
 tmp_file = Path('git_repo/tmp.txt')                 # 用于 replay 冲突的文件
 
 
