@@ -35,7 +35,7 @@ def write_content_to_file(content: str | list[str], file_path: Path) -> None:
     # if content is a List, join it with '\n'
     if isinstance(content, list):
         # content = '\n'.join(content)
-        if content == ['']: content = ""            # ! 非常重要
+        if content in [[''], []]: content = ""            # ! 非常重要
         else: content = '\n'.join(content) + '\n'
     file_path.write_text(content)
 
@@ -87,16 +87,49 @@ def replay(conflict: Conflict):
         return True # merge conflict
     return False # no conflict
 
+def _log(save_name, kind_counter, kind_pseudo, kind_correct):
+    with open(save_name, 'w') as f:
+        correct = sum(kind_correct.values())
+        total = sum(kind_counter.values())
+        print(f"总数 = {total}", file=f)
+        print(f"伪冲突 = {sum(kind_pseudo.values())}", file=f)
+        print(f"正确数 = {correct}", file=f)
+        print(f"伪冲突正确率 = {correct/sum(kind_pseudo.values())*100}%", file=f)
+        print(f"总正确率 = {correct/total*100}%", file=f)
+        print('各类型的数量：', file=f)
+        print(kind_counter, file=f)
+        print('各类型伪冲突数量：', file=f)
+        print(kind_pseudo, file=f)
+        print('各类型正确数量：', file=f)
+        print(kind_correct, file=f)
+
+        print('-' * 30, file=f)
+
+        total_correct_ratio = {kind: kind_correct[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}
+        pseudo_correct_ratio = {kind: kind_correct[kind]/kind_pseudo[kind]*100 for kind in kind_counter.keys()}
+        print('各种类型的伪冲突占比：', file=f)
+        print({kind: kind_pseudo[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}, file=f)
+        print('各类型伪冲突正确率：', file=f)
+        print(pseudo_correct_ratio, file=f)
+        print('各种类型的总正确率：', file=f)
+        print(total_correct_ratio, file=f)
+
 
 
 reset(delete_branch='theirs')
 ############################# 开始统计 #############################
+log_path = script_path / 'log'
+import random
+random.seed(42)
+random.shuffle(data)
 kind_pseudo = defaultdict(int)
 kind_counter = defaultdict(int)
 kind_correct = defaultdict(int)
-for conflict_dict in tqdm(data[:]):
+for idx, conflict_dict in enumerate(tqdm(data[:])):
     conflict = Conflict(conflict_dict['ours'], conflict_dict['theirs'],
                         conflict_dict['base'], conflict_dict['resolve'], conflict_dict['resolution_kind'])
+    # if conflict.resolution_kind in ['concat_ours_theirs', 'concat_theirs_ours']:       
+    #     print(1)
     kind_counter[conflict.resolution_kind] += 1
     has_conflict = replay(conflict)
     if has_conflict:
@@ -109,26 +142,7 @@ for conflict_dict in tqdm(data[:]):
     if result == list(filter(lambda line: not(line == '' or line.isspace()), conflict.resolution)):
         kind_correct[conflict.resolution_kind] += 1
     reset(delete_branch='theirs')
+    if idx % 100 == 99:
+        _log(log_path / (file_path.stem + f'_tmp.log'), kind_counter, kind_pseudo, kind_correct)
 
-print(kind_counter)
-print(kind_pseudo)
-print(kind_correct)
-
-save_path = script_path / 'log'
-save_name = save_path / (file_path.stem + '.log')
-with open(save_name, 'w') as f:
-    correct = sum(kind_correct.values())
-    total = sum(kind_counter.values())
-    print(f"总数 = {total}", file=f)
-    print(f"伪冲突 = {sum(kind_pseudo.values())}", file=f)
-    print(f"正确数 = {correct}", file=f)
-    print(f"伪冲突正确率 = {correct/sum(kind_pseudo.values())*100}%", file=f)
-    print(f"总正确率 = {correct/total*100}%", file=f)
-    print('-' * 30, file=f)
-    ratio = {kind: kind_correct[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}
-    print('各种类型的正确率：', file=f)
-    print(ratio, file=f)
-    print('各种类型的伪冲突占比：', file=f)
-    print({kind: kind_pseudo[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}, file=f)
-    print('各类型的数量：', file=f)
-    print(kind_counter, file=f)
+_log(log_path / (file_path.stem + f'.log'), kind_counter, kind_pseudo, kind_correct)
