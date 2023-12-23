@@ -20,7 +20,8 @@ with open(file_path, 'r', encoding='utf-8') as json_file:
 
 
 def run_command(args: List[str], **kwargs):
-    subprocess.run(args, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
+    result = subprocess.run(args, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs)
+    # print(result.stdout.decode('utf-8'))
 
 def writeNcommit(file: Path, content: Union[List[str], str], commit_message = "commit"):
     # if content is a List, join it with '\n'
@@ -47,7 +48,7 @@ def merge_branch(repo_dir: Path, branch_name: str):
     run_command([_git, "merge", branch_name], cwd = repo_dir)
 
 
-def replay(file: Path, conflict: Conflict):
+def replay(file: Path, conflict: dict):
     # 写入 base
     writeNcommit(file, conflict['base'], 'base')
     # 新建 theirs 分支
