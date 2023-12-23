@@ -47,6 +47,9 @@ def create_branch(branch_name: str) -> Head:
 
 
 def reset(delete_branch: str) -> None:
+    _git.restore('.', '--staged')
+    _git.restore('.', '--worktree')
+    _git.checkout('main')
     # 检查要删除的分支是否存在
     if delete_branch in repo.heads:
         # 删除分支
@@ -126,10 +129,10 @@ kind_pseudo = defaultdict(int)
 kind_counter = defaultdict(int)
 kind_correct = defaultdict(int)
 for idx, conflict_dict in enumerate(tqdm(data[:])):
+    if idx % 100 == 99:
+        _log(log_path / (file_path.stem + f'_tmp.log'), kind_counter, kind_pseudo, kind_correct)
     conflict = Conflict(conflict_dict['ours'], conflict_dict['theirs'],
                         conflict_dict['base'], conflict_dict['resolve'], conflict_dict['resolution_kind'])
-    # if conflict.resolution_kind in ['concat_ours_theirs', 'concat_theirs_ours']:       
-    #     print(1)
     kind_counter[conflict.resolution_kind] += 1
     has_conflict = replay(conflict)
     if has_conflict:
@@ -142,7 +145,5 @@ for idx, conflict_dict in enumerate(tqdm(data[:])):
     if result == list(filter(lambda line: not(line == '' or line.isspace()), conflict.resolution)):
         kind_correct[conflict.resolution_kind] += 1
     reset(delete_branch='theirs')
-    if idx % 100 == 99:
-        _log(log_path / (file_path.stem + f'_tmp.log'), kind_counter, kind_pseudo, kind_correct)
 
 _log(log_path / (file_path.stem + f'.log'), kind_counter, kind_pseudo, kind_correct)
