@@ -1,3 +1,4 @@
+import random
 from collections import defaultdict
 import re
 from pkg_resources import to_filename
@@ -8,16 +9,16 @@ from git import Commit, Head, Repo, Git
 import os
 
 from numpy import delete
-from util import Conflict
+from util.conflict_util import Conflict
 from pathlib import Path
 
 script_path = Path(os.path.dirname(os.path.abspath(__file__)))
-repo_path = script_path / "git_repo"
-repo_path = Path(script_path / 'git_repo')
+repo_path = Path(script_path / '..' / 'git_repo')
 repo = Repo(repo_path)
 tmpfile_path = Path(repo_path / 'tmp.txt')
 
 new_git_path = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
+log_path = script_path / '..' / 'log'
 Git.git_exec_name = new_git_path
 Git.refresh()
 _git = Git(repo_path)
@@ -26,7 +27,7 @@ no_parent_commit_generator = Commit.iter_items(
     repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
 no_parent_commit = next(no_parent_commit_generator)
 
-file_path = script_path / 'output' / 'self_collected_most_50.json'
+file_path = script_path / '..' / 'output' / 'self_collected_most_50.json'
 with open(file_path, 'r', encoding='utf-8') as json_file:
     data = json.load(json_file)
 
@@ -35,8 +36,10 @@ def write_content_to_file(content: str | list[str], file_path: Path) -> None:
     # if content is a List, join it with '\n'
     if isinstance(content, list):
         # content = '\n'.join(content)
-        if content in [[''], []]: content = ""            # ! 非常重要
-        else: content = '\n'.join(content) + '\n'
+        if content in [[''], []]:
+            content = ""            # ! 非常重要
+        else:
+            content = '\n'.join(content) + '\n'
     file_path.write_text(content)
 
 
@@ -87,8 +90,9 @@ def replay(conflict: Conflict):
     try:
         _git.merge('theirs')
     except Exception as e:
-        return True # merge conflict
-    return False # no conflict
+        return True  # merge conflict
+    return False  # no conflict
+
 
 def _log(save_name, kind_counter, kind_pseudo, kind_correct):
     with open(save_name, 'w') as f:
@@ -108,29 +112,30 @@ def _log(save_name, kind_counter, kind_pseudo, kind_correct):
 
         print('-' * 30, file=f)
 
-        total_correct_ratio = {kind: kind_correct[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}
-        pseudo_correct_ratio = {kind: kind_correct[kind]/kind_pseudo[kind]*100 for kind in kind_counter.keys()}
+        total_correct_ratio = {
+            kind: kind_correct[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}
+        pseudo_correct_ratio = {
+            kind: kind_correct[kind]/kind_pseudo[kind]*100 if kind_pseudo[kind] != 0 else 0 for kind in kind_counter.keys()}
         print('各种类型的伪冲突占比：', file=f)
-        print({kind: kind_pseudo[kind]/kind_counter[kind]*100 for kind in kind_counter.keys()}, file=f)
+        print({kind: kind_pseudo[kind]/kind_counter[kind]
+              * 100 for kind in kind_counter.keys()}, file=f)
         print('各类型伪冲突正确率：', file=f)
         print(pseudo_correct_ratio, file=f)
         print('各种类型的总正确率：', file=f)
         print(total_correct_ratio, file=f)
 
 
-
 reset(delete_branch='theirs')
 ############################# 开始统计 #############################
-log_path = script_path / 'log'
-import random
 random.seed(42)
 random.shuffle(data)
 kind_pseudo = defaultdict(int)
 kind_counter = defaultdict(int)
 kind_correct = defaultdict(int)
-for idx, conflict_dict in enumerate(tqdm(data[:])):
+for idx, conflict_dict in enumerate(tqdm(data[:10])):
     if idx % 100 == 99:
-        _log(log_path / (file_path.stem + f'_tmp.log'), kind_counter, kind_pseudo, kind_correct)
+        _log(log_path / (file_path.stem + f'_tmp.log'),
+             kind_counter, kind_pseudo, kind_correct)
     conflict = Conflict(conflict_dict['ours'], conflict_dict['theirs'],
                         conflict_dict['base'], conflict_dict['resolve'], conflict_dict['resolution_kind'])
     kind_counter[conflict.resolution_kind] += 1
@@ -140,10 +145,12 @@ for idx, conflict_dict in enumerate(tqdm(data[:])):
         continue
     kind_pseudo[conflict.resolution_kind] += 1
     with open(tmpfile_path, 'r', encoding='utf-8') as f:
-            result = f.read().split('\n')
-    result = list(filter(lambda line: not(line == '' or line.isspace()), result))
-    if result == list(filter(lambda line: not(line == '' or line.isspace()), conflict.resolution)):
+        result = f.read().split('\n')
+    result = list(filter(lambda line: not (
+        line == '' or line.isspace()), result))
+    if result == list(filter(lambda line: not (line == '' or line.isspace()), conflict.resolution)):
         kind_correct[conflict.resolution_kind] += 1
     reset(delete_branch='theirs')
 
-_log(log_path / (file_path.stem + f'.log'), kind_counter, kind_pseudo, kind_correct)
+_log(log_path / (file_path.stem + f'.log'),
+     kind_counter, kind_pseudo, kind_correct)
