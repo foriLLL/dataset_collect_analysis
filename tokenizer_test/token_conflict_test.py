@@ -19,6 +19,9 @@ repo_path = Path(script_path / ".." / "git_repo")
 repo = Repo(repo_path)
 tmpfile_path = Path(repo_path / 'tmp.txt')
 
+new_git_path = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
+Git.git_exec_name = new_git_path
+Git.refresh()
 _git = Git(repo_path)
 
 no_parent_commit_generator = Commit.iter_items(
@@ -147,6 +150,7 @@ for conflict_dict in tqdm(data[:], dynamic_ncols=True):
     merged_content = tmpfile_path.read_text()
     joint_merged = ''.join(merged_content.split('\n'))
     joint_resolution = ''.join(resolution_tokens)
+    # todo：比较时去除空行
     if joint_merged == joint_resolution:
         correct_counter[conflict.resolution_kind] += 1
 
