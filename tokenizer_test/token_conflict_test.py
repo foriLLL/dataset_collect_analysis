@@ -13,7 +13,7 @@ from pathlib import Path
 from util.tokenizer_util import encode, decode
 
 script_path = Path(os.path.dirname(os.path.abspath(__file__)))
-log_path = Path(script_path / '..' / 'log' / 'token_conflict_test.log')
+log_path = Path(script_path / '..' / 'log' / 'ES_unresolvable_self_collected_most_50_token_conflict_test.log')
 
 repo_path = Path(script_path / ".." / "git_repo")
 repo = Repo(repo_path)
@@ -25,7 +25,7 @@ no_parent_commit_generator = Commit.iter_items(
     repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
 no_parent_commit = next(no_parent_commit_generator)
 
-file_path = script_path / ".." / 'output' / 'self_collected_most_50.json'
+file_path = script_path / ".." / 'output' / 'self_collected_most_50_unresolvable.json'
 with open(file_path, 'r', encoding='utf-8') as json_file:
     data = json.load(json_file)
 
@@ -108,7 +108,7 @@ for conflict_dict in tqdm(data[:], dynamic_ncols=True):
     reset(delete_branch='theirs')
     # 1. 拿到 conflict
     conflict = Conflict(conflict_dict['ours'], conflict_dict['theirs'],
-                        conflict_dict['base'], conflict_dict['resolve'], conflict_dict['resolution_kind'])
+                        conflict_dict['base'], conflict_dict['resolution'], conflict_dict['resolution_kind'])
     kind_counter[conflict.resolution_kind] += 1
     
     debug_view(conflict)
