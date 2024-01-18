@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import List, Union
 import numpy as np
 
 
@@ -12,7 +12,7 @@ class OffsetRange:
         self.start = start
         self.end = end
 
-    def intersect(self, other: 'OffsetRange') -> 'OffsetRange':
+    def intersect(self, other: 'OffsetRange') -> Union['OffsetRange', None]:
         l1, r1 = self.start, self.end
         l2, r2 = other.start, other.end
         L = max(l1, l2)
@@ -62,7 +62,8 @@ class SequenceDiff:
         }
 
 
-def compute(sequence1: List[str], sequence2: List[str], equalityScore: Callable[[int, int], float] = lambda x, y: 1 if x == y else 0) -> List[SequenceDiff]:
+def compute(sequence1: List[str], sequence2: List[str], 
+            equalityScore = lambda x, y: 1 if x == y else 0) -> List[SequenceDiff]:
     # 如果其中一个字符串为空，直接返回 trivial LCS 操作序列
     if len(sequence1) == 0 or len(sequence2) == 0:
         # return a List containing a single SequenceDiff in which both ranges are from 0 to the lentgh of the non-empty sequence
