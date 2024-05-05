@@ -13,7 +13,7 @@ from pathlib import Path
 from util.tokenizer_util import encode, decode
 
 script_path = Path(os.path.dirname(os.path.abspath(__file__)))
-log_path = Path(script_path / '..' / 'log' / 'ES_unresolvable_self_collected_most_50_token_conflict_test.log')
+log_path = Path(script_path / '..' / 'log' / 'ES_unresolvable_self_collected_most_50_token_conflict_test2.log')
 
 repo_path = Path(script_path / ".." / "git_repo")
 repo = Repo(repo_path)
@@ -117,6 +117,7 @@ for conflict_dict in tqdm(data[:], dynamic_ncols=True):
         # !important
         if content_list in [[''], []]:
             return ""
+        content_list = list(filter(lambda x: x != '', content_list))
         return '\n'.join(content_list) + '\n'   # todo 检查是否正确
     
     base_content = content_preprocess(conflict.base)
