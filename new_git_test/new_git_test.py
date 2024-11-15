@@ -18,9 +18,51 @@ dataset_name = data_dir.stem
 print(f"开始统计 {dataset_name} 数据集")
 
 
-repo_path = Path(script_path / 'git_repo')
-# 初始化一个仓库
-repo = Repo(repo_path)
+repo_path = Path(script_path / 'git_repo' / dataset_name)
+
+
+def write_content_to_file(content: str | list[str], file_path: Path) -> None:
+    # if content is a List, join it with '\n'
+    if isinstance(content, list):
+        # content = '\n'.join(content)
+        if content in [[''], []]:
+            content = ""            # ! 非常重要
+        else:
+            content = '\n'.join(content) + '\n'
+    file_path.write_text(content)
+
+
+# 如果存在，先删除
+def remove_dir(dir_path: Path) -> None:
+    if dir_path.exists():
+        for item in dir_path.iterdir():
+            if item.is_dir():
+                remove_dir(item)
+            else:
+                item.unlink()
+        dir_path.rmdir()
+
+# 删除已有的仓库
+if repo_path.exists():
+    remove_dir(repo_path)
+
+# 初始化 Git 仓库
+repo = Repo.init(repo_path)
+print(f"Initialized empty Git repository in {repo.git_dir}")
+
+# 创建 .gitignore 文件
+gitignore_path = repo_path / '.gitignore'
+write_content_to_file(['.DS_Store', '.vscode/', '.idea/'], gitignore_path)
+
+# 添加并提交 .gitignore 文件
+repo.index.add([str(gitignore_path)])
+repo.index.commit("Add .gitignore")
+print(f"Added and committed .gitignore file.")
+
+# 将 master 分支重命名为 main
+if 'master' in repo.heads:
+    repo.heads.master.rename('main')
+
 tmpfile_path = Path(repo_path / 'tmp.txt')
 
 new_git_path = '/root/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
@@ -33,24 +75,6 @@ _git = Git(repo_path)
 no_parent_commit_generator = Commit.iter_items(
     repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
 no_parent_commit = next(no_parent_commit_generator)
-
-
-# def init_repo():
-#     _git.init()
-#     # 创建 .gitignore 文件
-#     write_content_to_file(['.DS_Store', '.vscode/', '.idea/'], repo_path / '.gitignore')
-    
-    
-
-def write_content_to_file(content: str | list[str], file_path: Path) -> None:
-    # if content is a List, join it with '\n'
-    if isinstance(content, list):
-        # content = '\n'.join(content)
-        if content in [[''], []]:
-            content = ""            # ! 非常重要
-        else:
-            content = '\n'.join(content) + '\n'
-    file_path.write_text(content)
 
 
 def create_branch(branch_name: str) -> Head:
