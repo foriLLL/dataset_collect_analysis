@@ -1,36 +1,46 @@
 import random
 from collections import defaultdict
 import re
-from pkg_resources import to_filename
 from tqdm import tqdm
 import json
-from telnetlib import EC
 from git import Commit, Head, Repo, Git
 import os
 
 from numpy import delete
-from util.conflict_util import Conflict
 from pathlib import Path
 
 script_path = Path(os.path.dirname(os.path.abspath(__file__)))
-repo_path = Path(script_path / '..' / 'git_repo')
+
+# data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / '2000repos'
+data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / 'mergebert_ts'
+# 最后的 dataset_name
+dataset_name = data_dir.stem
+print(f"开始统计 {dataset_name} 数据集")
+
+
+repo_path = Path(script_path / 'git_repo')
+# 初始化一个仓库
 repo = Repo(repo_path)
 tmpfile_path = Path(repo_path / 'tmp.txt')
 
-new_git_path = '/Users/foril/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
-log_path = script_path / '..' / 'log'
+new_git_path = '/root/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
+log_path = script_path / 'log'
 Git.git_exec_name = new_git_path
 Git.refresh()
 _git = Git(repo_path)
+
 
 no_parent_commit_generator = Commit.iter_items(
     repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
 no_parent_commit = next(no_parent_commit_generator)
 
-file_path = script_path / '..' / 'output' / 'self_collected_most_50.json'
-with open(file_path, 'r', encoding='utf-8') as json_file:
-    data = json.load(json_file)
 
+# def init_repo():
+#     _git.init()
+#     # 创建 .gitignore 文件
+#     write_content_to_file(['.DS_Store', '.vscode/', '.idea/'], repo_path / '.gitignore')
+    
+    
 
 def write_content_to_file(content: str | list[str], file_path: Path) -> None:
     # if content is a List, join it with '\n'
@@ -68,22 +78,22 @@ def commit_all(commit_message: str) -> None:
     repo.index.commit(commit_message)
 
 
-def replay(conflict: Conflict):
+def replay(base_content, a_content, b_content):
     # 写入 base
-    write_content_to_file(conflict.base, tmpfile_path)
+    write_content_to_file(base_content, tmpfile_path)
     # 提交
     commit_all('base')
     # 新建 theirs 分支
     theirs_branch = create_branch('theirs')
     _git.checkout(theirs_branch)
     # 写入 theirs
-    write_content_to_file(conflict.theirs, tmpfile_path)
+    write_content_to_file(b_content, tmpfile_path)
     # 提交
     commit_all('theirs')
     # 切换回 main
     _git.checkout('main')
     # 写入 ours
-    write_content_to_file(conflict.ours, tmpfile_path)
+    write_content_to_file(a_content, tmpfile_path)
     # 提交
     commit_all('ours')
     # merge theirs
@@ -95,7 +105,7 @@ def replay(conflict: Conflict):
 
 
 def _log(save_name, kind_counter, kind_pseudo, kind_correct):
-    with open(save_name, 'w') as f:
+    def print_res(f):
         correct = sum(kind_correct.values())
         total = sum(kind_counter.values())
         print(f"总数 = {total}", file=f)
@@ -124,33 +134,95 @@ def _log(save_name, kind_counter, kind_pseudo, kind_correct):
         print('各种类型的总正确率：', file=f)
         print(total_correct_ratio, file=f)
 
+    if save_name is None:
+        import sys
+        print_res(sys.stdout)
+        return
+    with open(save_name, 'w') as f:
+        print_res(f)
+
+def preprocess(content: str) -> str:
+    return '' if content.strip() == '' else re.sub(r'\s+', ' ', content.strip() + '\n')
 
 reset(delete_branch='theirs')
 ############################# 开始统计 #############################
-random.seed(42)
-random.shuffle(data)
 kind_pseudo = defaultdict(int)
 kind_counter = defaultdict(int)
 kind_correct = defaultdict(int)
-for idx, conflict_dict in enumerate(tqdm(data[:10])):
-    if idx % 100 == 99:
-        _log(log_path / (file_path.stem + f'_tmp.log'),
-             kind_counter, kind_pseudo, kind_correct)
-    conflict = Conflict(conflict_dict['ours'], conflict_dict['theirs'],
-                        conflict_dict['base'], conflict_dict['resolve'], conflict_dict['resolution_kind'])
-    kind_counter[conflict.resolution_kind] += 1
-    has_conflict = replay(conflict)
-    if has_conflict:
-        reset(delete_branch='theirs')
-        continue
-    kind_pseudo[conflict.resolution_kind] += 1
-    with open(tmpfile_path, 'r', encoding='utf-8') as f:
-        result = f.read().split('\n')
-    result = list(filter(lambda line: not (
-        line == '' or line.isspace()), result))
-    if result == list(filter(lambda line: not (line == '' or line.isspace()), conflict.resolution)):
-        kind_correct[conflict.resolution_kind] += 1
-    reset(delete_branch='theirs')
 
-_log(log_path / (file_path.stem + f'.log'),
-     kind_counter, kind_pseudo, kind_correct)
+# 获取 data_dir 下所有的 json 文件
+data_files = list(data_dir.glob('*.json'))
+# 遍历所有文件，读取数据
+for file_path in tqdm(data_files):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        cfs = json.load(f)
+    # 遍历所有的 chunk，重演 chunk 记录结果
+    for cf in tqdm(cfs):
+        for chunk in cf['conflict_chunks']:
+            a_content = chunk['a_content']
+            b_content = chunk['b_content']
+            base_content = chunk['o_content']
+
+            kind_counter[chunk['label']] += 1
+            has_conflict = replay(base_content, a_content, b_content)
+            if has_conflict:
+                reset(delete_branch='theirs')
+                continue
+            kind_pseudo[chunk['label']] += 1
+
+            # 没有冲突的情况下，读取 tmp.txt 文件
+            with open(tmpfile_path, 'r', encoding='utf-8') as f:
+                result = f.read()
+            if (preprocess(result) == preprocess(chunk['r_content'])):
+                kind_correct[chunk['label']] += 1
+            reset(delete_branch='theirs')
+
+    _log(None, kind_counter, kind_pseudo, kind_correct)
+
+
+
+_log(log_path / (f'{dataset_name}.log'), kind_counter, kind_pseudo, kind_correct)
+# 绘图表示并存储
+def paint_new_git_result(kind_counter, kind_pseudo, kind_correct):
+    import plotly.graph_objects as go
+    fig = go.Figure()
+    labels = list(kind_counter.keys())
+    correct_pseudo = [kind_correct[label] for label in labels]
+    wrong_pseudo = [kind_pseudo[label] - kind_correct[label] for label in labels]
+    non_pseudo = [kind_counter[label] - kind_pseudo[label] for label in labels]
+
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=correct_pseudo,
+        name='正确伪冲突'
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=wrong_pseudo,
+        name='错误伪冲突',
+        base=correct_pseudo
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels,
+        y=non_pseudo,
+        name='非伪冲突',
+        base=[correct_pseudo[i] + wrong_pseudo[i] for i in range(len(labels))]
+    ))
+
+    fig.update_layout(
+        barmode='stack',
+        title=f'{dataset_name} 伪冲突统计',
+        xaxis_title='冲突类型',
+        yaxis_title='数量',
+        font=dict(
+        family="Microsoft YaHei, SimHei, Arial",  # 指定多个字体，按顺序匹配
+        size=14
+    )
+    )
+
+    # 保存为 html 文件
+    fig.write_html(log_path / f'{dataset_name}_new_git_result.html')
+
+paint_new_git_result(kind_counter, kind_pseudo, kind_correct)
