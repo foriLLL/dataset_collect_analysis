@@ -12,7 +12,10 @@ from pathlib import Path
 script_path = Path(os.path.dirname(os.path.abspath(__file__)))
 
 # data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / '2000repos'
-data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / 'mergebert_ts'
+# data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / 'mergebert_ts'
+# data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / 'mergebert_all_lang'
+# data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / '100+stars_4GB-_multidev_org_lang'
+data_dir = script_path / '..' / 'data_collect_analysis' / 'output' / 'top50'
 # 最后的 dataset_name
 dataset_name = data_dir.stem
 print(f"开始统计 {dataset_name} 数据集")
@@ -42,27 +45,30 @@ def remove_dir(dir_path: Path) -> None:
                 item.unlink()
         dir_path.rmdir()
 
-# 删除已有的仓库
-if repo_path.exists():
-    remove_dir(repo_path)
+def clear_dir(repo_path: Path) -> None:
+    # 删除已有的仓库
+    if repo_path.exists():
+        remove_dir(repo_path)
 
-# 初始化 Git 仓库
-repo = Repo.init(repo_path)
-print(f"Initialized empty Git repository in {repo.git_dir}")
+    # 初始化 Git 仓库
+    repo = Repo.init(repo_path)
+    print(f"Initialized empty Git repository in {repo.git_dir}")
 
-# 创建 .gitignore 文件
-gitignore_path = repo_path / '.gitignore'
-write_content_to_file(['.DS_Store', '.vscode/', '.idea/'], gitignore_path)
+    # 创建 .gitignore 文件
+    gitignore_path = repo_path / '.gitignore'
+    write_content_to_file(['.DS_Store', '.vscode/', '.idea/'], gitignore_path)
 
-# 添加并提交 .gitignore 文件
-repo.index.add([str(gitignore_path)])
-repo.index.commit("Add .gitignore")
-print(f"Added and committed .gitignore file.")
+    # 添加并提交 .gitignore 文件
+    repo.index.add([str(gitignore_path)])
+    repo.index.commit("Add .gitignore")
+    print(f"Added and committed .gitignore file.")
 
-# 将 master 分支重命名为 main
-if 'master' in repo.heads:
-    repo.heads.master.rename('main')
+    # 将 master 分支重命名为 main
+    if 'master' in repo.heads:
+        repo.heads.master.rename('main')
+    return repo
 
+repo = clear_dir(repo_path)
 tmpfile_path = Path(repo_path / 'tmp.txt')
 
 new_git_path = '/root/projects/git/bin-wrappers/git'                  # 编译后的 Git 地址
@@ -71,10 +77,6 @@ Git.git_exec_name = new_git_path
 Git.refresh()
 _git = Git(repo_path)
 
-
-no_parent_commit_generator = Commit.iter_items(
-    repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
-no_parent_commit = next(no_parent_commit_generator)
 
 
 def create_branch(branch_name: str) -> Head:
@@ -92,6 +94,9 @@ def reset(delete_branch: str) -> None:
         # 删除分支
         _git.branch('-D', delete_branch)
     # main reset 到第一个 commit
+    no_parent_commit_generator = Commit.iter_items(
+        repo=repo, rev="main",  max_parents=0)  # 找到 reachable 最早的 commit
+    no_parent_commit = next(no_parent_commit_generator)
     _git.reset('--hard', str(no_parent_commit))
 
 
@@ -200,6 +205,7 @@ for file_path in tqdm(data_files):
             if (preprocess(result) == preprocess(chunk['r_content'])):
                 kind_correct[chunk['label']] += 1
             reset(delete_branch='theirs')
+    repo = clear_dir(repo_path)
 
     _log(None, kind_counter, kind_pseudo, kind_correct)
 
