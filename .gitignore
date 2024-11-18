@@ -5,6 +5,6 @@ data/
 git_repo/
 output/
 out/
-log/
 .idea/
 .DS_Store
+.ipynb_checkpoints/

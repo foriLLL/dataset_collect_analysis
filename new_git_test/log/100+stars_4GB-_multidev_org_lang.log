@@ -1,0 +1,18 @@
+总数 = 1070489
+伪冲突 = 475822
+正确数 = 234565
+伪冲突正确率 = 49.29679586063696%
+总正确率 = 21.911948651504126%
+各类型的数量：
+defaultdict(<class 'int'>, {'B': 273304, 'A': 323316, 'newline': 218112, 'mixline': 163673, 'AB': 45887, 'BA': 18370, 'same modification, formatting maybe different': 23222, 'O': 4605})
+各类型伪冲突数量：
+defaultdict(<class 'int'>, {'B': 98012, 'mixline': 138163, 'A': 108461, 'AB': 44451, 'newline': 52260, 'BA': 17887, 'same modification, formatting maybe different': 15533, 'O': 1055})
+各类型正确数量：
+defaultdict(<class 'int'>, {'B': 28696, 'mixline': 112553, 'A': 37209, 'AB': 42649, 'newline': 2110, 'same modification, formatting maybe different': 11302, 'BA': 44, 'O': 2})
+------------------------------
+各种类型的伪冲突占比：
+{'B': 35.86189737435237, 'A': 33.54643754098158, 'newline': 23.960167253521128, 'mixline': 84.41404507768539, 'AB': 96.87057336500534, 'BA': 97.3707131192161, 'same modification, formatting maybe different': 66.88915683403668, 'O': 22.90988056460369}
+各类型伪冲突正确率：
+{'B': 29.278047586009876, 'A': 34.3063405279317, 'newline': 4.037504783773441, 'mixline': 81.46392304741501, 'AB': 95.94609795055229, 'BA': 0.24598870688209315, 'same modification, formatting maybe different': 72.76121805188951, 'O': 0.18957345971563982}
+各种类型的总正确率：
+{'B': 10.499663378508913, 'A': 11.508555097799057, 'newline': 0.9673928990610328, 'mixline': 68.76699272329584, 'AB': 92.94353520604965, 'BA': 0.23952095808383234, 'same modification, formatting maybe different': 48.669365257083804, 'O': 0.04343105320304018}

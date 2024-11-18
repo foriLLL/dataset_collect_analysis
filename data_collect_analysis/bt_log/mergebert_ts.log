@@ -1,0 +1,16 @@
+在 mergebert_ts 下统计结果:
+共有 13504 个冲突块，其中 8970 个可以用编辑脚本解决，占比 66.42%
+有 113450 个冲突块的编辑脚本有交集
+有 148 个冲突块的行数过大，无法处理
+编辑脚本数量分布: defaultdict(<class 'int'>, {2: 9155, 3: 678, 4: 158, 1: 149, 5: 82, 6: 43, 0: 8, 8: 17, 15: 1, 20: 1, 18: 2, 9: 4, 7: 21, 10: 2, 14: 1, 12: 2})
+接受标记分布: defaultdict(<class 'int'>, {True: 14598, False: 4541})
+类型分布: defaultdict(<class 'int'>, {'mixline': 4715, 'AB': 1485, 'B': 1590, 'A': 1969, 'newline': 3063, 'BA': 426, 'same modification, formatting maybe different': 68, 'O': 188})
+可解决类型分布: defaultdict(<class 'int'>, {'AB': 1382, 'B': 1558, 'A': 1932, 'mixline': 3452, 'BA': 391, 'same modification, formatting maybe different': 67, 'O': 188})
+mixline: 4715, 可解决: 3452，占比: 73.21%
+AB: 1485, 可解决: 1382，占比: 93.06%
+B: 1590, 可解决: 1558，占比: 97.99%
+A: 1969, 可解决: 1932，占比: 98.12%
+newline: 3063, 可解决: 0，占比: 0.00%
+BA: 426, 可解决: 391，占比: 91.78%
+same modification, formatting maybe different: 68, 可解决: 67，占比: 98.53%
+O: 188, 可解决: 188，占比: 100.00%
