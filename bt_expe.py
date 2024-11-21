@@ -281,18 +281,30 @@ def analyze_edit_script(dir2analyze):
                 else:
                     next_content = b_contents[start:end]
 
-                #  另一种 concat（seq1Range 的长度为 0，代表双方在同一位置的插入）
-                if len(all_edit_scripts[i].edit_script.seq1Range) == 0:
+                # base 长度为 0 的情况，只需要加入另一种 concat（seq1Range 的长度为 0，代表双方在同一位置的插入）
+                all_edit_scripts[i + 1].accept = True
+                if bt(generated
+                        + o_contents[last_end:all_edit_scripts[i].edit_script.seq1Range.start]
+                        + next_content
+                        + curr_content,
+                    i + 2,
+                    all_edit_scripts[i].edit_script.seq1Range.end,
+                    all_edit_scripts
+                ):
+                    return True
+                # base 长度不为 0 的情况，需要考虑两种 concat
+                if len(all_edit_scripts[i].edit_script.seq1Range) > 0: 
                     all_edit_scripts[i + 1].accept = True
                     if bt(generated
                             + o_contents[last_end:all_edit_scripts[i].edit_script.seq1Range.start]
-                            + next_content
-                            + curr_content,
-                        i + 2,
-                        all_edit_scripts[i].edit_script.seq1Range.end,
-                        all_edit_scripts
-                        ):
+                            + curr_content
+                            + next_content,
+                            i + 2,
+                            all_edit_scripts[i].edit_script.seq1Range.end,
+                            all_edit_scripts
+                    ):
                         return True
+
 
 
         # 开始收集数据集
@@ -371,4 +383,6 @@ def analyze_edit_script(dir2analyze):
 # dir2analyze = work_dir / "data_collect_analysis" / "output" / "100+stars_4GB-_multidev_org_lang"
 # dir2analyze = work_dir / "data_collect_analysis" / "output" / "2000repos"
 dir2analyze = work_dir / "data_collect_analysis" / "output" / "top50"
+# dir2analyze = work_dir / "data_collect_analysis" / "output" / "mergebert_ts"
+# dir2analyze = work_dir / "data_collect_analysis" / "output" / "mergebert_all_lang"
 analyze_edit_script(dir2analyze)

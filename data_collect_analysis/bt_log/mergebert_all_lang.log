@@ -1,16 +1,16 @@
 在 mergebert_all_lang 下统计结果:
-共有 151426 个冲突块，其中 99380 个可以用编辑脚本解决，占比 65.63%
-有 296872 个冲突块的编辑脚本有交集
+共有 151426 个冲突块，其中 99693 个可以用编辑脚本解决，占比 65.84%
+有 770040 个冲突块的编辑脚本有交集
 有 3345 个冲突块的行数过大，无法处理
 编辑脚本数量分布: defaultdict(<class 'int'>, {2: 94441, 3: 9366, 0: 244, 1: 5413, 5: 1053, 13: 31, 4: 2675, 6: 498, 9: 100, 12: 39, 11: 43, 7: 284, 10: 81, 8: 183, 19: 6, 14: 21, 21: 4, 17: 9, 15: 10, 16: 11, 18: 8, 26: 1, 23: 2, 28: 2, 24: 1, 20: 3, 32: 2, 27: 1, 22: 1})
-接受标记分布: defaultdict(<class 'int'>, {True: 151421, False: 62811})
+接受标记分布: defaultdict(<class 'int'>, {True: 152054, False: 62816})
 类型分布: defaultdict(<class 'int'>, {'A': 26323, 'AB': 12025, 'B': 26772, 'BA': 4184, 'newline': 34619, 'mixline': 44476, 'same modification, formatting maybe different': 2027, 'O': 1000})
-可解决类型分布: defaultdict(<class 'int'>, {'A': 25777, 'AB': 10666, 'B': 26312, 'mixline': 30047, 'same modification, formatting maybe different': 1888, 'BA': 3726, 'O': 964})
+可解决类型分布: defaultdict(<class 'int'>, {'A': 25777, 'AB': 10885, 'B': 26312, 'mixline': 30056, 'same modification, formatting maybe different': 1892, 'BA': 3807, 'O': 964})
 A: 26323, 可解决: 25777，占比: 97.93%
-AB: 12025, 可解决: 10666，占比: 88.70%
+AB: 12025, 可解决: 10885，占比: 90.52%
 B: 26772, 可解决: 26312，占比: 98.28%
-BA: 4184, 可解决: 3726，占比: 89.05%
+BA: 4184, 可解决: 3807，占比: 90.99%
 newline: 34619, 可解决: 0，占比: 0.00%
-mixline: 44476, 可解决: 30047，占比: 67.56%
-same modification, formatting maybe different: 2027, 可解决: 1888，占比: 93.14%
+mixline: 44476, 可解决: 30056，占比: 67.58%
+same modification, formatting maybe different: 2027, 可解决: 1892，占比: 93.34%
 O: 1000, 可解决: 964，占比: 96.40%
