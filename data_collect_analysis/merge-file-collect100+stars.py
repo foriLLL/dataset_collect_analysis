@@ -163,6 +163,7 @@ class ConflictFileCollector:
 # 5. 覆盖写入文件
 
 import os
+import re
 import json
 from pathlib import Path
 
@@ -198,38 +199,55 @@ def process_conflict_file(conflict_file):
 
     # 执行 merge
     merged_lines_withEnding = merge_file(a_content, b_content, o_content)   # 每行末尾都有换行符
+    conflict_file['file_m_content'] = ''.join(merged_lines_withEnding)
 
     # 提取冲突块
     conflict_chunks = []
     in_conflict = False
-    chunk = {"a_content": "", "b_content": "", "o_content": ""}
+    chunk = None
     current_content = ""  # 用于临时存储当前块内容
     chunk_idx = 0
     for i in range(len(merged_lines_withEnding)):
         line = merged_lines_withEnding[i]
         if line.startswith("<<<<<<<"):
+            if in_conflict:
+                # 如果当前已经在冲突块中，说明文件有问题，直接返回
+                conflict_file["conflict_chunks"] = []
+                return conflict_file
             in_conflict = True
             chunk = {
                 "a_content": "",
                 "b_content": "",
                 "o_content": "",
-                'startLine': i,
                 'm_start': i,
             }
             current_content = ""  # 初始化临时变量
         elif line.startswith("|||||||"):
+            if chunk is None:
+                # 先看到 |||，说明文件有问题，直接返回
+                conflict_file["conflict_chunks"] = []
+                return conflict_file
             chunk["a_content"] = current_content  # 保存当前块为 a_content
             current_content = ""
         elif line.startswith("======="):
+            if chunk is None:
+                # 先看到 ===，说明文件有问题，直接返回
+                conflict_file["conflict_chunks"] = []
+                return conflict_file
             chunk["o_content"] = current_content
             current_content = ""  # 清空临时变量准备存储 b_content
         elif line.startswith(">>>>>>>"):
+            if chunk is None:
+                # 先看到 >>>，说明文件有问题，直接返回
+                conflict_file["conflict_chunks"] = []
+                return conflict_file
             chunk["b_content"] = current_content  # 保存 b_content
             chunk['chunk_idx'] = chunk_idx
             chunk_idx += 1
             chunk['m_end'] = i + 1
             in_conflict = False
             conflict_chunks.append(chunk)
+            chunk = None
         elif in_conflict:
             current_content += line  # 累加当前冲突块内容
 
@@ -277,6 +295,10 @@ def process_conflict_file(conflict_file):
 
     for i in range(len(conflict_chunks) - 1, -1, -1):  # 反向遍历，以便删除元素
         cc = conflict_chunks[i]
+        if 'm_start' not in cc:
+            # 说明这个原本的文本中含有冲突块，这个文件不要
+            conflict_file["conflict_chunks"] = []
+            return conflict_file
         # 创建用于后缀匹配的 subArr_eos
         subArr_eos = merged_lines_withEnding[cc['m_end']:] + ['<End Marker Here>']
         sffxIdx = minimal_unique_prefix(subArr_eos, truth_padded)  # 查找后缀起始位置
@@ -289,15 +311,17 @@ def process_conflict_file(conflict_file):
         subArr_bos = merged_lines_withEnding[:cc['m_start']][::-1] + ['<Begin Marker Here>']
         prfxIdx = minimal_unique_prefix(subArr_bos, reversed_truth_padded)  # 查找前缀起始位置
         if prfxIdx == -1:
+            del conflict_chunks[i]
             continue
 
         # 如果条件满足，则提取解决方案
         if len_after - prfxIdx <= sffxIdx:
             start = len_after - prfxIdx
             end = sffxIdx
-            cc['resolution'] = truth_padded[start:end]
+            cc['r_content'] = ''.join(truth_padded[start:end])
+            cc['label'] = ConflictFileCollector.getLabel(cc['a_content'], cc['b_content'], cc['o_content'], cc['r_content'])
         else:
-            cc['resolution'] = []  # 如果不满足条件，设为空列表或根据需要处理
+            del conflict_chunks[i]
 
     # 更新 conflict_file 的冲突块
     conflict_file["conflict_chunks"] = conflict_chunks
@@ -305,29 +329,45 @@ def process_conflict_file(conflict_file):
 
 
 
+from tqdm import tqdm
+from multiprocessing import Pool
+import signal
+
+def initializer():
+    """Ignore CTRL+C in the worker process."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # 子进程忽略中断信号
+    
 def process_json_file(json_file_path):
     """
-    处理单个 JSON 文件，将 conflictFiles 并行处理
+    处理单个 JSON 文件，将 conflictFiles 并行处理，并添加 tqdm 进度条。
     """
     with open(json_file_path, "r") as f:
         conflict_files = json.load(f)
 
     # 多进程处理 conflictFiles
-    cpus = os.cpu_count() - 4
-    from multiprocessing import Pool
-    import signal
-    def initializer():
-        """Ignore CTRL+C in the worker process."""
-        signal.signal(signal.SIGINT, signal.SIG_IGN)    # 子进程不会立即响应中断信号。这样做的目的是将中断信号的控制权留给主进程。
+    cpus = os.cpu_count() - 8
+    # cpus = 1
+    print(f"Using {cpus} CPUs")
 
-    with Pool(cpus, initializer=initializer) as pool:
-        try:
-            updated_conflict_files = pool.map(process_conflict_file, conflict_files)
-        except KeyboardInterrupt:
-            print('manually stop, exiting all processes')
-            pool.terminate()
 
-    return updated_conflict_files
+    # 创建一个共享的进度条
+    with tqdm(total=len(conflict_files), desc="Processing files", unit="file", dynamic_ncols=True) as pbar:
+        def update(*args):
+            """更新进度条"""
+            pbar.update()
+
+        with Pool(cpus, initializer=initializer) as pool:
+            try:
+                # 使用 `imap_unordered` 逐步处理并更新进度
+                results = []
+                for result in pool.imap_unordered(process_conflict_file, conflict_files):
+                    results.append(result)
+                    update()
+            except KeyboardInterrupt:
+                print('manually stop, exiting all processes')
+                pool.terminate()
+
+    return results
 
 def process_directory(input_dir, output_dir):
     """
@@ -336,15 +376,17 @@ def process_directory(input_dir, output_dir):
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    json_file_paths = list(input_dir.glob("*.json"))
+    with tqdm(total=len(json_file_paths), desc="Processing JSON files", dynamic_ncols=True, unit="file") as outer_pbar:
+        for json_file in json_file_paths:
+            print(f"Processing {json_file}")
+            updated_conflict_files = process_json_file(json_file)
 
-    for json_file in input_dir.glob("*.json"):
-        print(f"Processing {json_file}")
-        updated_conflict_files = process_json_file(json_file)
-
-        # 保存更新后的 JSON 文件
-        output_path = output_dir / json_file.name
-        with open(output_path, "w") as f:
-            json.dump(updated_conflict_files, f, indent=4)
+            # 保存更新后的 JSON 文件
+            output_path = output_dir / json_file.name
+            with open(output_path, "w") as f:
+                json.dump(updated_conflict_files, f, indent=4)
+            outer_pbar.update()
 
 if __name__ == "__main__":
     input_dir = "/root/projects/dataset_collect_analysis/data_collect_analysis/output/100+stars_4GB-_multidev_org_lang"  # 替换为实际输入目录
